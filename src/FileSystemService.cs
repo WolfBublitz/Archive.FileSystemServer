@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Archive.FileSystemService.V1;
 using Google.Protobuf.WellKnownTypes;
@@ -44,7 +45,7 @@ public sealed class FileSystemService : FileSystemServiceBase
     {
         FileSystemInfos fileSystemInfos = new();
 
-        foreach (Archive.FileSystemService.V1.FileSystemInfo fileSystemInfo in fileSystemServiceConfiguration.FileSystems)
+        foreach (FileSystemInfo fileSystemInfo in fileSystemServiceConfiguration.FileSystems)
         {
             fileSystemInfos.FileSystemInfos_.Add(fileSystemInfo);
         }
@@ -86,7 +87,11 @@ public sealed class FileSystemService : FileSystemServiceBase
 
     public sealed override Task<ReadDirectoryResponse> ReadDirectory(ReadDirectoryRequest request, ServerCallContext context)
     {
-        string absolutePath = System.IO.Path.Combine(request.FileSystemInfo.RootPath, request.Path);
+        FileSystemInfo? fileSystemInfo = fileSystemServiceConfiguration.FileSystems.FirstOrDefault(fileSystemInfo => fileSystemInfo.Name == request.FileSystem) ?? throw new RpcException(new Status(StatusCode.NotFound, $"File system '{request.FileSystem}' not found."));
+
+        string relativePath = string.IsNullOrEmpty(request.Path) ? string.Empty : request.Path;
+
+        string absolutePath = System.IO.Path.Combine(fileSystemInfo.RootPath, relativePath);
 
         if (!System.IO.Directory.Exists(absolutePath))
         {
